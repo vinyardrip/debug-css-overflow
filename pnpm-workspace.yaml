@@ -1,0 +1,8 @@
+packages:
+  - .
+  - tests_plugin
+
+# pnpm 11 blocks dependency build scripts by default; approve the ones the
+# toolchain actually needs. esbuild is required by vite/tsup/vitest.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,35 @@
+---
+title: Nunjucks + HTMX
+---
+<!doctype html>
+<html lang="{{ language }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }} — {{ siteName }}</title>
+  </head>
+  <body>
+    <div class="htmx-triggers">
+      <button
+        class="btn"
+        id="htmx-load"
+        hx-get="/fragment.html"
+        hx-target="#htmx-slot"
+        hx-swap="innerHTML"
+      >Load dynamic content</button>
+      <button
+        class="btn"
+        id="htmx-reset"
+        hx-get="/fragment-clean.html"
+        hx-target="#htmx-slot"
+        hx-swap="innerHTML"
+      >Reset dynamic content</button>
+    </div>
+
+    <div id="htmx-slot" class="htmx-slot">
+      {% include "partials/status.njk" %}
+    </div>
+
+    <script type="module" src="/nunjucks/main.ts"></script>
+  </body>
+</html>

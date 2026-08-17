@@ -1,0 +1,27 @@
+{
+  "name": "debug-css-overflow-playground",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Vite multi-page playground that showcases and visually tests debug-css-overflow across vanilla, nunjucks+htmx, svelte, vue, and react routes.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 5173 --strictPort"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@types/node": "^26.2.0",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "debug-css-overflow": "workspace:*",
+    "htmx.org": "^2.0.10",
+    "nunjucks": "^3.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "svelte": "^5.56.9",
+    "vite": "^8.2.1",
+    "vite-plugin-njk-frontmatter": "^1.0.2",
+    "vue": "^3.5.41"
+  }
+}

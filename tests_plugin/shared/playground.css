@@ -1,0 +1,185 @@
+/* Base playground page, fixed top navbar, and generic `.case` styling.
+   Shared by every route (vanilla, nunjucks, svelte, vue, react). The
+   `body.layout-broken` overflow rules live in overflow-cases.css — or are
+   re-declared scoped inside the framework components — so each stack keeps
+   control over its own overflow triggers. */
+
+:root {
+  --dcso-nav-h: 52px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding-top: var(--dcso-nav-h);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* ---------- Fixed top navbar ---------- */
+
+.dcso-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--dcso-nav-h);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 16px;
+  background: #0f172a;
+  color: #f8fafc;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+.dcso-nav__brand {
+  font-weight: 700;
+  color: #f8fafc;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.dcso-nav__brand::before {
+  content: "◉ ";
+  color: #34d399;
+}
+
+.dcso-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+}
+.dcso-nav__links a {
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+.dcso-nav__links a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+.dcso-nav__links a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dcso-nav__actions {
+  display: flex;
+  gap: 8px;
+}
+.dcso-nav__actions button {
+  font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dcso-nav__actions button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+#dcso-toggle-overflow:hover {
+  background: #be123c;
+  border-color: #be123c;
+}
+
+/* ---------- Overflow edge cases (base card styling) ---------- */
+
+.playground-cases {
+  padding: 18px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.case {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.case + .case {
+  margin-top: 18px;
+}
+.case h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+.case p {
+  margin: 0;
+  color: #334155;
+}
+.case code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #be123c;
+}
+
+.case-table table {
+  margin-top: 12px;
+  border-collapse: collapse;
+  background: #fff;
+}
+.case-table th,
+.case-table td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+}
+.case-table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+/* ---------- HTMX slot (nunjucks route) ---------- */
+
+.htmx-triggers {
+  display: flex;
+  gap: 8px;
+  margin: 18px 18px 0;
+}
+.htmx-triggers button,
+.btn {
+  font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+.htmx-triggers button:hover,
+.btn:hover {
+  background: #f1f5f9;
+}
+
+.htmx-slot {
+  margin: 18px;
+  padding: 16px;
+  background: #ecfdf5;
+  border: 1px dashed #34d399;
+  border-radius: 10px;
+  color: #065f46;
+}
+.htmx-slot .case {
+  margin: 0 0 12px;
+}

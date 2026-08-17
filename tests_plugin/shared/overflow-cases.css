@@ -1,0 +1,28 @@
+/* Intentional layout overflow edge cases — vanilla/nunjucks routes.
+   The rules apply only while the page carries body.layout-broken (the navbar
+   "Toggle Overflow" button controls it), so the playground can switch between
+   a broken and a clean layout instantly.
+
+   The svelte/vue/react routes re-declare the same four rules in their own
+   (scoped) component styles — see those components for the framework flavor. */
+
+body.layout-broken .case-viewport-wide {
+  /* Wider than the viewport: forces horizontal page scroll. */
+  width: 120vw;
+}
+
+body.layout-broken .case-table table {
+  /* Un-scrolled wide table: 1800px min-width overflows any viewport below it. */
+  min-width: 1800px;
+}
+
+body.layout-broken .case-nowrap {
+  /* Long text that refuses to wrap: the card grows beyond the viewport. */
+  white-space: nowrap;
+}
+
+body.layout-broken .case-offset {
+  /* Shifted 110% to the right: right edge leaves the viewport entirely. */
+  position: relative;
+  left: 110%;
+}

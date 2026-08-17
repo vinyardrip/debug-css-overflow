@@ -1,0 +1,50 @@
+{
+  "name": "debug-css-overflow",
+  "version": "0.1.0",
+  "description": "Zero-dependency dev utility that detects horizontal overflow (overflow-x), highlights offending elements, and shows a small Shadow DOM widget.",
+  "keywords": [
+    "overflow",
+    "overflow-x",
+    "horizontal-scroll",
+    "debug",
+    "devtools",
+    "css",
+    "layout",
+    "detector"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build && pnpm test",
+    "test:screenshot": "tsx scripts/capture-screenshots.ts",
+    "capture": "tsx scripts/capture-screenshots.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1",
+    "puppeteer-core": "^25.7.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

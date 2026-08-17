@@ -1,0 +1,19 @@
+/* Overflow edge cases for the React route — same four triggers as every
+   other stack, gated on body.layout-broken. Imported as plain CSS. */
+
+body.layout-broken .case-viewport-wide {
+  width: 120vw;
+}
+
+body.layout-broken .case-table table {
+  min-width: 1800px;
+}
+
+body.layout-broken .case-nowrap {
+  white-space: nowrap;
+}
+
+body.layout-broken .case-offset {
+  position: relative;
+  left: 110%;
+}
