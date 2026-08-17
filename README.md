@@ -1,5 +1,10 @@
 # debug-css-overflow
 
+[![npm version](https://img.shields.io/npm/v/debug-css-overflow.svg)](https://www.npmjs.com/package/debug-css-overflow)
+[![License](https://img.shields.io/npm/l/debug-css-overflow.svg)](https://github.com/vinyardrip/debug-css-overflow/blob/main/LICENSE)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/debug-css-overflow)](https://bundlephobia.com/package/debug-css-overflow)
+[![GitHub stars](https://img.shields.io/github/stars/vinyardrip/debug-css-overflow.svg)](https://github.com/vinyardrip/debug-css-overflow)
+
 Zero-dependency dev utility that detects **horizontal overflow** (`overflow-x`), highlights the offending elements, and shows a small floating widget — fully isolated inside **Shadow DOM**.
 
 - 🎯 Detects whole-page overflow (`scrollWidth > innerWidth`) **and** individual offenders (`offsetWidth` / `getBoundingClientRect().right` beyond the viewport, with a 1px subpixel tolerance).
@@ -11,32 +16,68 @@ Zero-dependency dev utility that detects **horizontal overflow** (`overflow-x`),
 
 ## Install
 
+Add it as a **dev dependency** — it's meant for development, and it's tree-shaken out of production builds.
+
 ```bash
+# npm
+npm install -D debug-css-overflow
+
+# pnpm
 pnpm add -D debug-css-overflow
+
+# yarn
+yarn add -D debug-css-overflow
+
+# bun
+bun add -d debug-css-overflow
 ```
 
-## Usage
+## Quick Start
+
+### With a bundler (Vite, webpack, etc.)
 
 ```ts
 import { initDebugCssOverflow } from "debug-css-overflow";
 
 // Dev-only, e.g.:
 if (import.meta.env.DEV) {
-  const detector = initDebugCssOverflow({
-    position: "top-right",
-    offset: { top: 64 }, // clear a fixed top navbar (52px + 12px gutter)
-    accentColor: "#ff0055",
-    onChange: (state) => console.log("overflow state:", state),
-  });
-
-  // Later:
-  // detector.toggleHighlight();
-  // detector.setMinimized(true);
-  // detector.destroy();
+  initDebugCssOverflow();
 }
 ```
 
-`initDebugCssOverflow()` returns a controller (or `null` when `enabled: false`), and dispatches a `debug-css-overflow:change` `CustomEvent` on `document` whenever the overflow state changes.
+### Plain HTML (no build step)
+
+Drop the pre-built bundle in with a `<script>` tag — either from a CDN or your own `node_modules` copy:
+
+```html
+<script src="https://unpkg.com/debug-css-overflow/dist/index.global.js"></script>
+<!-- or: https://cdn.jsdelivr.net/npm/debug-css-overflow/dist/index.global.js -->
+<script>
+  DebugCssOverflow.initDebugCssOverflow();
+</script>
+```
+
+### With options
+
+```ts
+import { initDebugCssOverflow } from "debug-css-overflow";
+
+const detector = initDebugCssOverflow({
+  position: "top-right",
+  offset: { top: 64 }, // clear a fixed top navbar (52px + 12px gutter)
+  accentColor: "#ff0055",
+  onChange: (state) => console.log("overflow state:", state),
+});
+```
+
+`initDebugCssOverflow()` returns a controller (or `null` when `enabled: false`) and dispatches a `debug-css-overflow:change` `CustomEvent` on `document` whenever the overflow state changes.
+
+```ts
+// From the controller:
+detector?.toggleHighlight(); // toggle container outlines
+detector?.setMinimized(true); // collapse the widget to a dot
+detector?.destroy(); // remove the widget and stop scanning
+```
 
 ## Options
 
@@ -90,14 +131,14 @@ The navbar's **Toggle Overflow** button flips `body.layout-broken`, which activa
 
 | State | Preview |
 | ----- | ------- |
-| `demo-danger.png` — widget reports offenders (`OVERFLOW`) | ![danger](.github/assets/demo-danger.png) |
-| `demo-highlight.png` — container outlines on | ![highlight](.github/assets/demo-highlight.png) |
-| `demo-minimized.png` — collapsed dot + metrics badge | ![minimized](.github/assets/demo-minimized.png) |
-| `demo-clean.png` — no overflow, status `OK` | ![clean](.github/assets/demo-clean.png) |
+| `demo-danger.png` — widget reports offenders (`OVERFLOW`) | ![danger](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-danger.png) |
+| `demo-highlight.png` — container outlines on | ![highlight](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-highlight.png) |
+| `demo-minimized.png` — collapsed dot + metrics badge | ![minimized](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-minimized.png) |
+| `demo-clean.png` — no overflow, status `OK` | ![clean](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-clean.png) |
 
 Per-route copies live in `.github/assets/<route>/`, and mobile danger shots in `.github/assets/mobile/`.
 
-The suite never downloads a browser binary: it uses `puppeteer-core` and launches the **system** Chrome/Chromium (the root `.npmrc` sets `puppeteer_skip_download=true`). Point it at a specific binary when needed:
+The suite never downloads a browser binary: it uses `puppeteer-core`, launches the **system** Chrome/Chromium, and the `test:screenshot` / `capture` scripts set `PUPPETEER_SKIP_DOWNLOAD=true` so no browser is ever fetched. Point it at a specific binary when needed:
 
 ```bash
 PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable pnpm test:screenshot

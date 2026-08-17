@@ -8,7 +8,7 @@
  *   2. Start the Vite dev server (tests_plugin) on http://localhost:5173.
  *   3. Launch Puppeteer (puppeteer-core) against the SYSTEM Chrome/Chromium —
  *      no browser binaries are ever downloaded: puppeteer-core has no install
- *      script, and the root .npmrc sets puppeteer_skip_download=true.
+ *      script, and the scripts set PUPPETEER_SKIP_DOWNLOAD=true (package.json).
  *   4. For every route capture four states at 1440x900:
  *        demo-danger     — overflow triggers ON, widget reports offenders
  *        demo-highlight  — container-outline highlighting enabled (Alt+O)

@@ -1,6 +1,6 @@
 {
   "name": "debug-css-overflow",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "Zero-dependency dev utility that detects horizontal overflow (overflow-x), highlights offending elements, and shows a small Shadow DOM widget.",
   "keywords": [
     "overflow",
@@ -33,8 +33,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build && pnpm test",
-    "test:screenshot": "tsx scripts/capture-screenshots.ts",
-    "capture": "tsx scripts/capture-screenshots.ts"
+    "test:screenshot": "PUPPETEER_SKIP_DOWNLOAD=true tsx scripts/capture-screenshots.ts",
+    "capture": "PUPPETEER_SKIP_DOWNLOAD=true tsx scripts/capture-screenshots.ts"
   },
   "engines": {
     "node": ">=18"
