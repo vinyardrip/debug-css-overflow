@@ -149,4 +149,4 @@ The playground, screenshot scripts, and generated assets are dev-only and exclud
 
 ## License
 
-MIT
+[MIT](./LICENSE) © vinyardrip

@@ -11,7 +11,15 @@
     "css",
     "layout",
     "detector"
-  ],
+  ],"repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinyardrip/debug-css-overflow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vinyardrip/debug-css-overflow/issues"
+  },
+  "homepage": "https://github.com/vinyardrip/debug-css-overflow#readme",
+  "author": "vinyardrip",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
