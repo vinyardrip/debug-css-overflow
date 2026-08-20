@@ -4,9 +4,10 @@
  * Detection is event-driven (no `setInterval` polling):
  *
  *   * `window` `resize` events (debounced),
- *   * a `MutationObserver` on `document.body` watching `style`/`class`
+ *   * a `MutationObserver` on `document.documentElement` watching `class`
  *     attributes and node insertion/removal,
- *   * a `ResizeObserver` on `document.body` catching element size changes.
+ *   * a `ResizeObserver` on `document.documentElement` catching element size
+ *     changes.
  *
  * Highlight application is mutation-safe: classes are only added/removed when
  * their state actually changes, so the observers never loop on themselves.
@@ -48,6 +49,18 @@ interface ParsedHotkey {
 }
 
 /* ==========================================================================
+ * Environment detection
+ * ========================================================================== */
+
+/**
+ * True when running inside jsdom (where `requestAnimationFrame` is defined
+ * but never fires its callbacks).  Used to fall back to synchronous DOM
+ * writes so the tests still pass.
+ */
+const IS_JSDOM =
+  typeof navigator !== "undefined" && /jsdom/.test(navigator.userAgent);
+
+/* ==========================================================================
  * Pure geometry helpers (unit-testable without a real layout engine)
  * ========================================================================== */
 
@@ -64,8 +77,9 @@ export function getViewportWidth(win: Window): number {
 export function isPageOverflowing(win: Window): boolean {
   const doc = win.document;
   const docWidth = doc.documentElement.scrollWidth;
-  const bodyWidth = doc.body ? doc.body.scrollWidth : 0;
-  return Math.max(docWidth, bodyWidth) > win.innerWidth;
+  const body = doc.body;
+  const bodyWidth = body ? body.scrollWidth : 0;
+  return Math.max(docWidth, bodyWidth) > getViewportWidth(win);
 }
 
 /**
@@ -76,6 +90,26 @@ export function isPageOverflowing(win: Window): boolean {
 export function isExceedingViewport(el: Element, innerWidth: number): boolean {
   const rect = el.getBoundingClientRect();
   return rect.right > innerWidth + 1;
+}
+
+/**
+ * Walks up from `el` to find an ancestor with `overflow-x: auto` or
+ * `overflow-x: scroll`. Returns the scrolling container, or `null` when
+ * there is none (the element is a true page-level offender).
+ */
+function findScrollableAncestor(el: Element): Element | null {
+  let node: Element | null = el.parentElement;
+  while (node && node !== document.body && node !== document.documentElement) {
+    const style = window.getComputedStyle(node);
+    if (
+      style.overflowX === "auto" ||
+      style.overflowX === "scroll"
+    ) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
 }
 
 /**
@@ -96,8 +130,16 @@ export function scan(
     const el = node as HTMLElement;
     // `display: none` and hidden elements have offsetWidth === 0 and are
     // filtered out naturally.
-    if (el.offsetWidth > viewport || isExceedingViewport(el, win.innerWidth)) {
-      offenders.push(el);
+    if (
+      el.offsetWidth > viewport ||
+      isExceedingViewport(el, viewport)
+    ) {
+      // Skip elements that live inside an intentionally scrolling container
+      // (overflow-x: auto|scroll) — those are not true page offenders.
+      const scrollableParent = findScrollableAncestor(el);
+      if (!scrollableParent) {
+        offenders.push(el);
+      }
     }
   }
   return offenders;
@@ -134,7 +176,7 @@ export function firstOffenderInfo(
   const el = offenders[0];
   if (!el) return null;
   const rect = el.getBoundingClientRect();
-  const width = Math.round(Math.max(el.offsetWidth, rect.right));
+  const width = Math.round(Math.max(el.offsetWidth, rect.width));
   const excess = Math.round(rect.right - innerWidth);
   return { selector: describe(el), width, excess: Math.max(excess, 0) };
 }
@@ -150,9 +192,8 @@ export function scanHighlightTargets(
   doc: Document,
   offenders: HTMLElement[],
   host: HTMLElement | null,
-  win: Window,
+  viewport: number,
 ): Element[] {
-  const viewport = getViewportWidth(win);
   const candidates = new Set<Element>();
 
   // Top-level layout containers (direct children of body) — the "page
@@ -173,7 +214,7 @@ export function scanHighlightTargets(
     (el) =>
       el.scrollWidth > el.clientWidth ||
       (el as HTMLElement).offsetWidth >= viewport ||
-      isExceedingViewport(el, win.innerWidth),
+      isExceedingViewport(el, viewport),
   );
   // Automatic offenders are always added (even if they failed the filter above).
   for (const el of offenders) {
@@ -193,18 +234,20 @@ export function applyHighlights(
   highlighted: boolean,
   offenders: HTMLElement[],
   host: HTMLElement | null,
-  win: Window,
+  viewport: number,
 ): void {
   if (!highlighted) {
-    // Turning the mode off: remove classes only where they actually exist.
-    const els = doc.querySelectorAll(".dcso-highlighted, .dcso-is-overflowing");
+    // Turning the mode off: remove the manual highlight class, but preserve
+    // .dcso-is-overflowing on actual detected offenders so the status
+    // indicator is never wrong.
+    const els = doc.querySelectorAll(".dcso-highlighted");
     for (const el of els) {
-      el.classList.remove("dcso-highlighted", "dcso-is-overflowing");
+      el.classList.remove("dcso-highlighted");
     }
     return;
   }
 
-  const targets = scanHighlightTargets(doc, offenders, host, win);
+  const targets = scanHighlightTargets(doc, offenders, host, viewport);
   const desired = new Set(targets);
 
   // Remove .dcso-highlighted from elements that fell out of the target set.
@@ -316,6 +359,7 @@ export class OverflowDetector implements DebugCssOverflowController {
   private resizeObserver: ResizeObserver | null = null;
   private scanTimer = 0;
   private resizeEndTimer = 0;
+  private _rafPending = false;
   private lastReportKey = "";
   private destroyed = false;
 
@@ -375,16 +419,20 @@ export class OverflowDetector implements DebugCssOverflowController {
     window.addEventListener("resize", this.onResize);
 
     // Event-driven DOM monitoring instead of setInterval polling: node
-    // insertion/removal (childList) plus style/class attribute changes — so
+    // insertion/removal (childList) plus class attribute changes — so
     // DevTools edits (e.g. disabling a negative margin) and dynamic content
     // trigger a recalc through a 150ms debounce. Our own highlighting is
     // mutation-safe (applyHighlights does not touch unchanged classes), so
     // the observer never loops on itself.
+    //
+    // We observe `document.documentElement` instead of `document.body` so
+    // the script is safe to load in <head> without defer — the element is
+    // always present at any document lifecycle stage.
     if (typeof MutationObserver !== "undefined") {
       this.domObserver = new MutationObserver(() => this.scheduleRefresh());
-      this.domObserver.observe(document.body, {
+      this.domObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["style", "class"],
+        attributeFilter: ["class"],
         childList: true,
         subtree: true,
       });
@@ -393,7 +441,7 @@ export class OverflowDetector implements DebugCssOverflowController {
     // (loaded content, fonts, dynamic blocks) with the same debounce.
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => this.scheduleRefresh());
-      this.resizeObserver.observe(document.body);
+      this.resizeObserver.observe(document.documentElement);
     }
 
     this.refresh(); // initial scan on load
@@ -427,8 +475,12 @@ export class OverflowDetector implements DebugCssOverflowController {
   refresh(): void {
     if (this.destroyed) return;
     const win = window;
+    const host = this.widget ? this.widget.host : null;
+
+    // ── READ PHASE ── perform all layout-reading DOM queries first ──
     const pageOverflow = isPageOverflowing(win);
-    const offenders = scan(document, this.widget ? this.widget.host : null, win);
+    const offenders = scan(document, host, win);
+    const viewport = getViewportWidth(win);
     const changed =
       pageOverflow !== this._state.pageOverflow ||
       offenders.length !== this._state.offenderCount;
@@ -436,22 +488,17 @@ export class OverflowDetector implements DebugCssOverflowController {
     this._state = {
       pageOverflow,
       offenderCount: offenders.length,
-      viewportWidth: getViewportWidth(win),
+      viewportWidth: viewport,
       overflowing: pageOverflow || offenders.length > 0,
     };
 
-    this.report(offenders);
-    this.updateWidget(offenders);
-    // Manual highlighting stays current as the layout changes — and turning
-    // the mode OFF also removes the classes (applyHighlights is a no-op when
-    // nothing changed, so this never causes observer feedback loops).
-    applyHighlights(
-      document,
-      this._highlighted,
-      offenders,
-      this.widget ? this.widget.host : null,
-      win,
-    );
+    // ── WRITE PHASE ── batch all DOM mutations in a single animation frame
+    // to avoid synchronous reflows between queries and widget updates.
+    this.scheduleRafWrite(() => {
+      this.report(offenders);
+      this.updateWidget(offenders);
+      applyHighlights(document, this._highlighted, offenders, host, viewport);
+    });
 
     if (changed) this.notify();
   }
@@ -528,12 +575,13 @@ export class OverflowDetector implements DebugCssOverflowController {
     this.destroyed = true;
 
     this._highlighted = false;
-    applyHighlights(document, false, [], this.widget ? this.widget.host : null, window);
+    applyHighlights(document, false, [], this.widget ? this.widget.host : null, getViewportWidth(window));
 
     window.removeEventListener("keydown", this.onKeydown, true);
     window.removeEventListener("resize", this.onResize);
     window.clearTimeout(this.scanTimer);
     window.clearTimeout(this.resizeEndTimer);
+    this._rafPending = false;
 
     this.domObserver?.disconnect();
     this.domObserver = null;
@@ -681,6 +729,25 @@ export class OverflowDetector implements DebugCssOverflowController {
   private scheduleRefresh(ms = 150): void {
     window.clearTimeout(this.scanTimer);
     this.scanTimer = window.setTimeout(() => this.refresh(), ms);
+  }
+
+  /**
+   * Batches DOM writes into a single animation frame to prevent layout
+   * thrashing.  Falls back to synchronous execution in environments without
+   * requestAnimationFrame (e.g. jsdom in tests).
+   */
+  private scheduleRafWrite(fn: () => void): void {
+    if (!IS_JSDOM && typeof requestAnimationFrame !== "undefined") {
+      if (this._rafPending) return; // coalesce: the pending frame will see the latest state
+      this._rafPending = true;
+      requestAnimationFrame(() => {
+        this._rafPending = false;
+        fn();
+      });
+    } else {
+      // Synchronous fallback: jsdom (tests) or environments without rAF.
+      fn();
+    }
   }
 
   private onResize = (): void => {

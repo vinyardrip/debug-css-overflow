@@ -179,6 +179,32 @@ describe("scan", () => {
     expect(scan(document, host)).not.toContain(host);
   });
 
+  it("skips elements inside an intentionally scrollable container (overflow-x: auto)", () => {
+    setInnerWidth(800);
+    const scrollable = document.createElement("div");
+    scrollable.style.overflowX = "auto";
+    document.body.appendChild(scrollable);
+    const child = document.createElement("div");
+    scrollable.appendChild(child);
+    stubOffsetWidth(child, 1200);
+    stubRectRight(child, 500);
+    // getComputedStyle returns "auto" for overflowX on the parent, so the
+    // child is inside a scrolling container and should not be flagged.
+    expect(scan(document, null)).not.toContain(child);
+  });
+
+  it("skips elements inside an intentionally scrollable container (overflow-x: scroll)", () => {
+    setInnerWidth(800);
+    const scrollable = document.createElement("div");
+    scrollable.style.overflowX = "scroll";
+    document.body.appendChild(scrollable);
+    const child = document.createElement("div");
+    scrollable.appendChild(child);
+    stubOffsetWidth(child, 1200);
+    stubRectRight(child, 500);
+    expect(scan(document, null)).not.toContain(child);
+  });
+
   it("produces human-readable selectors and hotkey parsing", () => {
     const el = document.createElement("section");
     el.id = "hero";
@@ -296,6 +322,27 @@ describe("initDebugCssOverflow", () => {
     );
     expect(controller!.highlighted).toBe(false);
     expect(el.classList.contains("dcso-highlighted")).toBe(false);
+  });
+
+  it("preserves .dcso-is-overflowing on real offenders when highlight is toggled off", () => {
+    setInnerWidth(800);
+    const controller = initDebugCssOverflow({ storagePrefix: "test:" });
+    expect(controller).not.toBeNull();
+
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    stubRectRight(el, 1000);
+
+    // Enable highlighting — both classes should appear.
+    controller!.setHighlighted(true);
+    expect(el.classList.contains("dcso-highlighted")).toBe(true);
+    expect(el.classList.contains("dcso-is-overflowing")).toBe(true);
+
+    // Disable highlighting — .dcso-highlighted is removed, but
+    // .dcso-is-overflowing stays because el is a real offender.
+    controller!.setHighlighted(false);
+    expect(el.classList.contains("dcso-highlighted")).toBe(false);
+    expect(el.classList.contains("dcso-is-overflowing")).toBe(true);
   });
 
   it("hides the metrics badge in minimized state when the toggle is off", () => {
