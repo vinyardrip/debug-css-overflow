@@ -1,6 +1,6 @@
 {
   "name": "debug-css-overflow",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Zero-dependency dev utility that detects horizontal overflow (overflow-x), highlights offending elements, and shows a small Shadow DOM widget.",
   "keywords": [
     "overflow",
@@ -11,7 +11,8 @@
     "css",
     "layout",
     "detector"
-  ],"repository": {
+  ],
+  "repository": {
     "type": "git",
     "url": "git+https://github.com/vinyardrip/debug-css-overflow.git"
   },
