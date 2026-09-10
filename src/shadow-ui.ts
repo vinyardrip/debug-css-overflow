@@ -33,6 +33,7 @@ export interface WidgetNodes {
   badgeToggle: HTMLButtonElement;
   tooltipStatus: HTMLElement;
   tooltipViewport: HTMLElement;
+  tooltipOffCount: HTMLElement;
   tooltipOffender: HTMLElement;
   tooltipOffLabel: HTMLElement;
   tooltipOffWidth: HTMLElement;
@@ -267,6 +268,13 @@ export const WIDGET_STYLES = `
 }
 /* Hide the "first offender" block when there are no offenders */
 .dcso-tooltip-offender.dcso-hidden { display: none; }
+/* Offender-count headline: visually separated from the offender details. */
+.dcso-tooltip-off-count {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  font-weight: 600;
+}
 
 /* Compact metrics badge for the MINIMIZED state: sits next to the dot without
    hover (e.g. "1280px · +40px" or "1280px · OK"). */
@@ -453,6 +461,27 @@ export function removePageStyles(doc: Document): void {
  * ------------------------------------------------------------------------ */
 
 /**
+ * Applies per-edge offset overrides (see the --dcso-offset-* vars in
+ * WIDGET_STYLES) as inline custom properties on the host — set inline so
+ * they beat the `all: initial` reset in the :host rule and never inherit
+ * page custom properties with the same name. Edges absent from `offset`
+ * are cleared back to the default 12px gutter.
+ */
+export function applyWidgetOffset(
+  host: HTMLElement,
+  offset: WidgetOffset,
+): void {
+  for (const edge of ["top", "right", "bottom", "left"] as const) {
+    const value = offset[edge];
+    if (value !== undefined) {
+      host.style.setProperty(`--dcso-offset-${edge}`, `${value}px`);
+    } else {
+      host.style.removeProperty(`--dcso-offset-${edge}`);
+    }
+  }
+}
+
+/**
  * Builds the host element with an attached Shadow Root and returns references
  * to every widget node. All styles live inside the shadow tree.
  */
@@ -469,15 +498,7 @@ export function buildWidgetHost(
   host.id = WIDGET_HOST_ID;
   const shadow = host.attachShadow({ mode: "open" });
 
-  // Per-edge offset overrides (see the --dcso-offset-* vars in WIDGET_STYLES).
-  // Set inline so they beat the `all: initial` reset in the :host rule and
-  // never inherit page custom properties with the same name.
-  for (const edge of ["top", "right", "bottom", "left"] as const) {
-    const value = offset[edge];
-    if (value !== undefined) {
-      host.style.setProperty(`--dcso-offset-${edge}`, `${value}px`);
-    }
-  }
+  applyWidgetOffset(host, offset);
 
   const style = document.createElement("style");
   style.textContent = WIDGET_STYLES;
@@ -530,13 +551,20 @@ export function buildWidgetHost(
 
   const tooltipOffender = document.createElement("div");
   tooltipOffender.className = "dcso-tooltip-offender dcso-hidden";
+  const tooltipOffCount = document.createElement("div");
+  tooltipOffCount.className = "dcso-tooltip-off-count";
   const tooltipOffLabel = document.createElement("div");
   tooltipOffLabel.className = "dcso-tooltip-off-label";
   const tooltipOffWidth = document.createElement("div");
   tooltipOffWidth.className = "dcso-tooltip-off-width";
   const tooltipOffExcess = document.createElement("div");
   tooltipOffExcess.className = "dcso-tooltip-off-excess";
-  tooltipOffender.append(tooltipOffLabel, tooltipOffWidth, tooltipOffExcess);
+  tooltipOffender.append(
+    tooltipOffCount,
+    tooltipOffLabel,
+    tooltipOffWidth,
+    tooltipOffExcess,
+  );
 
   const tooltipShortcuts = document.createElement("div");
   tooltipShortcuts.className = "dcso-tooltip-shortcuts";
@@ -656,6 +684,7 @@ export function buildWidgetHost(
     badgeToggle,
     tooltipStatus: tooltipStatusB,
     tooltipViewport,
+    tooltipOffCount,
     tooltipOffender,
     tooltipOffLabel,
     tooltipOffWidth,

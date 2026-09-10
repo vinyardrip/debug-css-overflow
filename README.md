@@ -8,6 +8,8 @@
 Zero-dependency dev utility that detects **horizontal overflow** (`overflow-x`), highlights the offending elements, and shows a small floating widget — fully isolated inside **Shadow DOM**.
 
 - 🎯 Detects whole-page overflow (`scrollWidth > innerWidth`) **and** individual offenders (`offsetWidth` / `getBoundingClientRect().right` beyond the viewport, with a 1px subpixel tolerance).
+- 🧬 Parent deduplication: nested overflowing structures (`table > tbody > tr > td`, nested grid/flex layouts) are collapsed to their top-most ancestors — duplicate counts and stacked outlines are eliminated, so counts, outlines, and tooltips report root-level offenders only (e.g. `1 el.` instead of `11 el.` for one wide table).
+- 🔍 Expanded tooltip metrics: on hover the widget reports the total top-level offender count (`Offending elements: {count}`) and detailed geometry for the top offender — `Element width: {width}px (right edge: {rightEdge}px)` plus the viewport excess (`+{excess}px`). The right edge is surfaced only when it differs from the width (shifted elements), so the overflow math is always transparent.
 - 🔦 Hotkey toggles outline highlights on offending elements and layout containers — works even when the auto-status is "OK".
 - 📦 Zero runtime dependencies; framework-agnostic; tree-shaken out of production bundles (no DOM access until `initDebugCssOverflow()` is called).
 - 🧩 Widget, tooltip, and modal live in a Shadow Root — host CSS cannot leak in, widget CSS cannot leak out.
@@ -107,41 +109,50 @@ pnpm test        # vitest (unit geometry + E2E widget tests)
 pnpm build       # tsup → dist/index.mjs, dist/index.cjs, dist/index.global.js (+ .d.ts)
 ```
 
-`prepublishOnly` runs `pnpm build && pnpm test` so unbuilt or failing code can never be published.
+`prepublishOnly` runs `pnpm build && pnpm test` so unbuilt or failing code can never be published. The screenshot suite additionally needs a Chromium binary: either the Playwright-managed one (`npx playwright install chromium`) or any system Chrome/Chromium.
 
 ## Playground & screenshots
 
-`tests_plugin/` is a Vite multi-page playground that showcases and visually tests the widget across five stacks — all mounting the same fixed top navbar and the same intentional overflow edge cases (`width: 120vw`, an un-scrolled wide `<table>`, `white-space: nowrap`, `left: 110%`):
+`tests_plugin/` is a Vite multi-page playground that showcases and visually tests the widget across six routes. Every route features the same sticky, dark-themed DevTools header — the fixed top navbar — whose **Toggle Overflow** button flips `body.layout-broken` to dynamically trigger or clear the intentional overflow breakages across the shared test cases (`width: 120vw`, an un-scrolled wide `<table>`, `white-space: nowrap`, `left: 110%`):
 
 | Route | Stack |
 | ----- | ----- |
 | `/vanilla/` | Plain HTML + TypeScript |
-| `/nunjucks/` | Nunjucks (`vite-plugin-njk-frontmatter`) + HTMX (dynamic DOM insertion) |
+| `/nunjucks/` | Nunjucks + HTMX (dynamic DOM insertion) |
 | `/svelte/` | Svelte 5 (scoped CSS) |
 | `/vue/` | Vue 3 (scoped CSS) |
 | `/react/` | React 19 |
+| `/astro/` | Astro View Transitions emulation (pure client-side — no `astro` package) |
 
 ```bash
 cd tests_plugin && pnpm dev   # http://localhost:5173
 ```
 
-The navbar's **Toggle Overflow** button flips `body.layout-broken`, which activates or removes every overflow trigger.
+The `/astro/` route extends the DevTools toolbar with an interactive ClientRouter control panel: simulation buttons (**Simulate Navigation**, **Simulate After Swap**, **Simulate Page Load**), a ⓘ tooltip explaining the emulation, and live metrics (`hosts`, `styles`, `overflow`, `last event`) that update in real time as each simulation runs — confirming a clean teardown (`hosts: 0`) and a fresh mount (`hosts: 1`) on every simulated navigation, without memory leaks or duplicate instances. The route is a lightweight emulation, not a real Astro app — Astro is a standalone meta-framework and is not layered into the Vite dev server — dispatching the same native `astro:after-swap` / `astro:page-load` DOM events the Astro ClientRouter emits. The control panel is fully responsive: on narrow viewports the title, metrics, and buttons wrap into stacked rows, and the tooltip never exceeds the viewport edge.
 
-`pnpm test:screenshot` (alias `pnpm capture`) drives the whole playground headlessly with Puppeteer: it boots the Vite dev server, visits every route at `1440x900` (plus a `375x812` mobile overflow pass), and captures four states — overflown, highlighted, minimized, and clean — into `.github/assets/`:
+The playground's sticky DevTools header is fully responsive on mobile: at viewports `<= 640px` the six framework tabs collapse from text labels to compact framework SVG icons (Vanilla, Nunjucks, Svelte, Vue, React, Astro) so brand, tabs, and the Toggle Overflow button fit on one line — every tab keeps its full accessible name via `title`/`aria-label`.
+
+`pnpm test:screenshot` (alias `pnpm capture`) drives the whole playground headlessly with **Playwright**: it boots the Vite dev server, visits every route at `1440x900` (plus a `375x812` mobile overflow pass), and captures four states — overflown, highlighted, minimized, and clean — into `.github/assets/`:
 
 | State | Preview |
 | ----- | ------- |
-| `demo-danger.png` — widget reports offenders (`OVERFLOW`) | ![danger](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-danger.png) |
-| `demo-highlight.png` — container outlines on | ![highlight](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-highlight.png) |
-| `demo-minimized.png` — collapsed dot + metrics badge | ![minimized](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-minimized.png) |
-| `demo-clean.png` — no overflow, status `OK` | ![clean](https://raw.githubusercontent.com/vinyardrip/debug-css-overflow/main/.github/assets/demo-clean.png) |
+| `demo-danger.png` — widget reports offenders (`OVERFLOW`) | ![danger](./.github/assets/demo-danger.png) |
+| `demo-highlight.png` — container outlines on | ![highlight](./.github/assets/demo-highlight.png) |
+| `demo-minimized.png` — collapsed dot + metrics badge | ![minimized](./.github/assets/demo-minimized.png) |
+| `demo-clean.png` — no overflow, status `OK` | ![clean](./.github/assets/demo-clean.png) |
 
 Per-route copies live in `.github/assets/<route>/`, and mobile danger shots in `.github/assets/mobile/`.
 
-The suite never downloads a browser binary: it uses `puppeteer-core`, launches the **system** Chrome/Chromium, and the `test:screenshot` / `capture` scripts set `PUPPETEER_SKIP_DOWNLOAD=true` so no browser is ever fetched. Point it at a specific binary when needed:
+The suite runs headless Chromium through Playwright and resolves the browser gracefully — first the Playwright-managed build, then the system Chrome/Chromium. Install the managed browser once:
 
 ```bash
-PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable pnpm test:screenshot
+npx playwright install chromium
+```
+
+or point the suite at a specific system binary when needed:
+
+```bash
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome-stable pnpm test:screenshot
 # also honored: CHROME_PATH, CHROMIUM_PATH
 ```
 

@@ -8,6 +8,8 @@
  *   /svelte/    — Svelte 5 (scoped CSS)
  *   /vue/       — Vue 3 (scoped CSS)
  *   /react/     — React 19
+ *   /astro/     — lightweight client-side Astro View Transitions emulation
+ *                 (plain HTML + TypeScript — no `astro` package involved)
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,6 +61,7 @@ export default defineConfig({
         svelte: resolve(__dirname, "svelte/index.html"),
         vue: resolve(__dirname, "vue/index.html"),
         react: resolve(__dirname, "react/index.html"),
+        astro: resolve(__dirname, "astro/index.html"),
       },
     },
   },

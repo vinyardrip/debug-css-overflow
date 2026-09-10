@@ -14,6 +14,7 @@
  */
 
 import {
+  applyWidgetOffset,
   buildDisableModal,
   buildWidgetHost,
   injectPageStyles,
@@ -27,6 +28,7 @@ import type {
   DebugCssOverflowOptions,
   OffenderInfo,
   OverflowState,
+  WidgetOffset,
   WidgetPosition,
 } from "./types";
 
@@ -113,9 +115,34 @@ function findScrollableAncestor(el: Element): Element | null {
 }
 
 /**
+ * Parent deduplication (top-most ancestor filtering): keeps an element ONLY
+ * IF none of its ancestor nodes are also in the raw overflow list.
+ *
+ * For nested overflowing structures (e.g. `table > thead/tbody > tr > th/td`,
+ * where every level is wider than the viewport) only the top-most wrapper
+ * (`table`) is reported — children are absorbed by their ancestor's outline.
+ * This prevents inflated offender counts (a single wide table reporting as
+ * 11+ elements) and stacked outlines on nested elements.
+ */
+export function dedupeOffenders(raw: HTMLElement[]): HTMLElement[] {
+  if (raw.length < 2) return raw;
+  const all = new Set<Element>(raw);
+  return raw.filter((el) => {
+    let node: Element | null = el.parentElement;
+    while (node) {
+      if (all.has(node)) return false; // an ancestor is the "real" offender
+      node = node.parentElement;
+    }
+    return true;
+  });
+}
+
+/**
  * Scans the whole document for elements wider than the viewport: `offsetWidth`
  * greater than the viewport OR a right edge beyond `innerWidth`. The widget's
- * own host element (and its subtree) is always skipped.
+ * own host element (and its subtree) is always skipped. The raw list is then
+ * run through {@link dedupeOffenders}, so `offenders` contains only root-level
+ * elements — never a child of another offender.
  */
 export function scan(
   doc: Document,
@@ -123,7 +150,7 @@ export function scan(
   win: Window = window,
 ): HTMLElement[] {
   const viewport = getViewportWidth(win);
-  const offenders: HTMLElement[] = [];
+  const raw: HTMLElement[] = [];
   const all = doc.querySelectorAll("*");
   for (const node of all) {
     if (host && (node === host || host.contains(node))) continue;
@@ -138,11 +165,11 @@ export function scan(
       // (overflow-x: auto|scroll) — those are not true page offenders.
       const scrollableParent = findScrollableAncestor(el);
       if (!scrollableParent) {
-        offenders.push(el);
+        raw.push(el);
       }
     }
   }
-  return offenders;
+  return dedupeOffenders(raw);
 }
 
 /** Short CSS path to an element, e.g. `body > section.hero > div.hero-content`. */
@@ -168,17 +195,63 @@ export function plural(n: number): string {
   return n === 1 ? "element" : "elements";
 }
 
-/** Summary of the first offending element for the tooltip. */
+/** Summary of the top (rightmost) offending element for the tooltip. */
 export function firstOffenderInfo(
   offenders: HTMLElement[],
   innerWidth: number,
 ): OffenderInfo | null {
   const el = offenders[0];
   if (!el) return null;
-  const rect = el.getBoundingClientRect();
-  const width = Math.round(Math.max(el.offsetWidth, rect.width));
+  // Pick the offender with the largest right edge — the same element the
+  // maxOverflow calculation is derived from — so the tooltip excess always
+  // matches the badge's "+{maxOverflow}px".
+  let top = el;
+  let topRight = el.getBoundingClientRect().right;
+  for (const candidate of offenders) {
+    const right = candidate.getBoundingClientRect().right;
+    if (right > topRight) {
+      top = candidate;
+      topRight = right;
+    }
+  }
+  const rect = top.getBoundingClientRect();
+  const width = Math.round(Math.max(top.offsetWidth, rect.width));
+  const rightEdge = Math.round(rect.right);
   const excess = Math.round(rect.right - innerWidth);
-  return { selector: describe(el), width, excess: Math.max(excess, 0) };
+  return {
+    selector: describe(top),
+    width,
+    rightEdge,
+    excess: Math.max(excess, 0),
+  };
+}
+
+/**
+ * True maximum page overflow: the largest right-edge excess across all
+ * offenders (or the document scroll width when there are no offenders but
+ * the page still scrolls horizontally). This is the amount the horizontal
+ * scrollbar expands by — not just the first offender's delta.
+ */
+export function maxOverflowOf(
+  offenders: HTMLElement[],
+  win: Window,
+): number {
+  const inner = win.innerWidth;
+  if (offenders.length > 0) {
+    const maxRight = Math.max(
+      ...offenders.map((el) => el.getBoundingClientRect().right),
+    );
+    return Math.max(Math.round(maxRight - inner), 0);
+  }
+  return Math.max(
+    Math.round(
+      Math.max(
+        win.document.documentElement.scrollWidth,
+        win.document.body ? win.document.body.scrollWidth : 0,
+      ) - inner,
+    ),
+    0,
+  );
 }
 
 /**
@@ -556,6 +629,16 @@ export class OverflowDetector implements DebugCssOverflowController {
     this.syncColorUi();
   }
 
+  /**
+   * Updates the widget's per-edge offset in place (without a re-init), so a
+   * page can follow a growing fixed header (e.g. a navbar whose tabs wrap
+   * into multiple lines on resize).
+   */
+  setOffset(offset: WidgetOffset): void {
+    this.opts.offset = offset;
+    if (this.widget) applyWidgetOffset(this.widget.host, offset);
+  }
+
   toggleMetricsBadge(): boolean {
     this.setMetricsBadgeVisible(!this._showMetricsBadge);
     return this._showMetricsBadge;
@@ -657,35 +740,44 @@ export class OverflowDetector implements DebugCssOverflowController {
     const vpText = `Viewport width: ${inner}px`;
     setText(w.tooltipViewport, vpText);
 
-    // First-offender block in the tooltip (hidden when there are none).
+    // Top-offender block in the tooltip (hidden when there are none). The
+    // block opens with the total offender count, then details the offender
+    // with the largest right edge — the same element that drives the badge's
+    // "+{maxOverflow}px" value.
     const info = overflowing ? firstOffenderInfo(offenders, inner) : null;
     w.tooltipOffender.classList.toggle("dcso-hidden", !info);
     if (info) {
-      setText(w.tooltipOffLabel, `First offender: ${info.selector}`);
-      setText(w.tooltipOffWidth, `— Element width: ${info.width}px`);
+      setText(w.tooltipOffCount, `Offending elements: ${count}`);
+      setText(w.tooltipOffLabel, `Top offender: ${info.selector}`);
+      // Right edge vs. width: when the element is shifted (relative offsets,
+      // transforms, non-zero left) its right edge is NOT width + x0, so the
+      // excess math only becomes transparent if the right edge is shown too
+      // (e.g. "1001px (right edge: 2120px)" → 2120 - 1037 = +1083). When the
+      // right edge coincides with the width (element starts at x≈0), the
+      // width alone already tells the whole story.
+      const widthText =
+        Math.abs(info.rightEdge - info.width) > 1
+          ? `— Element width: ${info.width}px (right edge: ${info.rightEdge}px)`
+          : `— Element width: ${info.width}px`;
+      setText(w.tooltipOffWidth, widthText);
       setText(w.tooltipOffExcess, `— Overflow beyond viewport: +${info.excess}px`);
     } else {
       // Transition into a clean state: clear any "ghost" metrics.
+      setText(w.tooltipOffCount, "");
       setText(w.tooltipOffLabel, "");
       setText(w.tooltipOffWidth, "");
       setText(w.tooltipOffExcess, "");
     }
 
-    // Minimized badge: "1280px · +40px" (overflowing) or "1280px · OK".
+    // Minimized badge: "{count} el. · {viewport}px · +{maxOverflow}px" when
+    // overflowing (maxOverflow = the TRUE page overflow — the largest
+    // right-edge excess across all offenders), or "0 el. · {viewport}px · OK".
     let badgeText: string;
     if (overflowing) {
-      const offender = firstOffenderInfo(offenders, inner);
-      const excess = offender
-        ? offender.excess
-        : Math.round(
-            Math.max(
-              document.documentElement.scrollWidth,
-              document.body.scrollWidth,
-            ) - inner,
-          );
-      badgeText = `${inner}px · +${Math.max(excess, 0)}px`;
+      const maxOverflow = maxOverflowOf(offenders, window);
+      badgeText = `${count} el. · ${inner}px · +${maxOverflow}px`;
     } else {
-      badgeText = `${inner}px · OK`;
+      badgeText = `0 el. · ${inner}px · OK`;
     }
     setText(w.badge, badgeText);
   }

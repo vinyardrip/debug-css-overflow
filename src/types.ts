@@ -101,12 +101,21 @@ export interface OverflowState {
   readonly overflowing: boolean;
 }
 
-/** Human-readable summary of the first offending element. */
+/**
+ * Human-readable summary of the top (rightmost) offending element — the
+ * one whose right edge defines the page's maximum overflow.
+ */
 export interface OffenderInfo {
   /** Short CSS path, e.g. `body > section.hero > div.hero-content`. */
   readonly selector: string;
   /** Approximate element width in pixels. */
   readonly width: number;
+  /**
+   * Right-edge x coordinate in viewport pixels. Shown alongside the width
+   * when the element is offset/transformed (`width` alone would hide where
+   * the element actually ends, and the excess derives from this value).
+   */
+  readonly rightEdge: number;
   /** How many pixels the element sticks out beyond the viewport. */
   readonly excess: number;
 }
@@ -136,6 +145,11 @@ export interface DebugCssOverflowController {
   cyclePosition(): WidgetPosition;
   /** Change the accent color used for highlights and the widget. */
   setAccentColor(color: string): void;
+  /**
+   * Update the widget's per-edge offset in place — e.g. follow a fixed
+   * navbar whose tabs wrap into multiple lines after a resize.
+   */
+  setOffset(offset: WidgetOffset): void;
   /** Toggle the metrics badge in the minimized state; returns the new value. */
   toggleMetricsBadge(): boolean;
   /** Show or hide the metrics badge in the minimized state. */

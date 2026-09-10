@@ -6,3 +6,9 @@ packages:
 # toolchain actually needs. esbuild is required by vite/tsup/vitest.
 allowBuilds:
   esbuild: true
+
+# Sandboxed environments may mount the machine's pnpm store read-only, which
+# makes pnpm's pre-run dependency verification fail (its implicit install
+# opens the store's SQLite index read-write) before any script executes.
+# Verifying deps is unnecessary for script runs — install stays explicit.
+verifyDepsBeforeRun: false

@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { initDebugCssOverflow } from "debug-css-overflow";
-  import { breakLayout, mountNavbar, WIDGET_OFFSET } from "../shared/playground";
+  import { breakLayout, computeWidgetOffset, mountNavbar, syncNavbarHeight } from "../shared/playground";
 
   onMount(() => {
     mountNavbar("svelte");
     breakLayout();
-    window.__dcso = initDebugCssOverflow({ position: "top-right", offset: WIDGET_OFFSET });
+    syncNavbarHeight();
+    window.__dcso = initDebugCssOverflow({
+      position: "top-right",
+      offset: computeWidgetOffset(),
+    });
   });
 </script>
 

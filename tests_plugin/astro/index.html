@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astro (emulated) — debug-css-overflow playground</title>
+  </head>
+  <body>
+    <header class="astro-toolbar" aria-label="Astro View Transitions controls">
+      <h2 class="astro-toolbar__title">
+        Astro View Transitions
+        <button
+          type="button"
+          class="astro-toolbar__info"
+          id="astro-info"
+          aria-label="About this emulation"
+        >ⓘ</button>
+        <span class="astro-toolbar__tooltip" role="tooltip">
+          Emulates ClientRouter lifecycle events (<code>astro:page-load</code>,
+          <code>astro:after-swap</code>) to test detector lifecycle integrity.
+        </span>
+      </h2>
+
+      <dl class="astro-metrics">
+        <div><dt>hosts</dt><dd id="astro-diag-hosts">—</dd></div>
+        <div><dt>styles</dt><dd id="astro-diag-styles">—</dd></div>
+        <div><dt>overflow</dt><dd id="astro-diag-overflow">—</dd></div>
+        <div><dt>last event</dt><dd id="astro-diag-last-event">—</dd></div>
+      </dl>
+
+      <div class="astro-actions">
+        <button
+          type="button"
+          class="btn"
+          id="astro-simulate-navigation"
+          title="Swap the DOM, then dispatch astro:after-swap and astro:page-load in the real ClientRouter order"
+        >Simulate Navigation</button>
+        <button
+          type="button"
+          class="btn"
+          id="astro-simulate-after-swap"
+          title="Swap the DOM and dispatch astro:after-swap (detector teardown)"
+        >Simulate After Swap</button>
+        <button
+          type="button"
+          class="btn"
+          id="astro-simulate-page-load"
+          title="Dispatch astro:page-load (detector re-init)"
+        >Simulate Page Load</button>
+      </div>
+
+      <p class="astro-lifecycle-hint">
+        <strong>Simulate After Swap</strong> cleans up the detector instance to
+        prevent memory leaks; <strong>Simulate Page Load</strong> re-initializes
+        it — mirroring <code>astro:after-swap</code> (teardown) and
+        <code>astro:page-load</code> (fresh boot).
+      </p>
+    </header>
+
+    <section class="astro-page-header" aria-labelledby="astro-page-title">
+      <h1 class="astro-page-header__title" id="astro-page-title">
+        Astro (View Transitions)
+        <span class="astro-render-badge" id="astro-render-badge" hidden>Render #1</span>
+      </h1>
+      <p class="astro-page-header__subtitle">
+        Testing detector lifecycle cleanup &amp; re-initialization on ClientRouter events.
+      </p>
+    </section>
+
+    <script type="module" src="/astro/main.ts"></script>
+  </body>
+</html>

@@ -1,12 +1,16 @@
 <script setup lang="ts">
   import { onMounted } from "vue";
   import { initDebugCssOverflow } from "debug-css-overflow";
-  import { breakLayout, mountNavbar, WIDGET_OFFSET } from "../shared/playground";
+  import { breakLayout, computeWidgetOffset, mountNavbar, syncNavbarHeight } from "../shared/playground";
 
   onMounted(() => {
     mountNavbar("vue");
     breakLayout();
-    window.__dcso = initDebugCssOverflow({ position: "top-right", offset: WIDGET_OFFSET });
+    syncNavbarHeight();
+    window.__dcso = initDebugCssOverflow({
+      position: "top-right",
+      offset: computeWidgetOffset(),
+    });
   });
 </script>
 

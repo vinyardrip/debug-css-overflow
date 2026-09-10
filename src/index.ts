@@ -38,6 +38,7 @@ export {
   OverflowDetector,
   WIDGET_POSITIONS,
 };
+export { maxOverflowOf } from "./detector";
 
 export type {
   DebugCssOverflowController,

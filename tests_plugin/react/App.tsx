@@ -6,14 +6,18 @@
  */
 import { useEffect } from "react";
 import { initDebugCssOverflow } from "debug-css-overflow";
-import { breakLayout, mountNavbar, WIDGET_OFFSET } from "../shared/playground";
+import { breakLayout, computeWidgetOffset, mountNavbar, syncNavbarHeight } from "../shared/playground";
 import "./app.css";
 
 export default function App() {
   useEffect(() => {
     mountNavbar("react");
     breakLayout();
-    window.__dcso = initDebugCssOverflow({ position: "top-right", offset: WIDGET_OFFSET });
+    syncNavbarHeight();
+    window.__dcso = initDebugCssOverflow({
+      position: "top-right",
+      offset: computeWidgetOffset(),
+    });
   }, []);
 
   return (

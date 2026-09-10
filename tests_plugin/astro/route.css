@@ -1,0 +1,127 @@
+/*
+ * /astro/ route-scoped styles: page header, render badge, simulation button
+ * active states, and the metric pulse. Nothing here is imported by other
+ * routes — the shared playground.css is deliberately untouched so
+ * /vanilla/, /nunjucks/, /svelte/, /vue/, and /react/ keep their exact
+ * geometry and behavior.
+ *
+ * Note: the swapped content region is deliberately NEVER dimmed, blurred,
+ * or faded — it stays crisp and readable at 100% opacity through every
+ * simulated ClientRouter event. All feedback lives in the toolbar: the
+ * active button state and the metric pulse.
+ */
+
+/* ---------- Page header above the demo cards ---------- */
+
+.astro-page-header {
+  margin: 18px 18px 0;
+}
+.astro-page-header__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font: 700 22px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #0f172a;
+}
+.astro-page-header__subtitle {
+  margin: 4px 0 0;
+  font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #334155;
+}
+
+/* Render badge: fresh-DOM indicator shown/updated on every astro:page-load */
+
+.astro-render-badge {
+  font: 600 11.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(137, 180, 250, 0.45);
+  background: rgba(137, 180, 250, 0.12);
+  color: #1e66f5;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(3px);
+}
+.astro-render-badge.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+/* ---------- Lifecycle hint (inside the toolbar, below the buttons) ----------
+ * Concise UX explainer for the ClientRouter controls: teardown vs re-init.
+ * Takes the full toolbar width (flex-basis: 100%) so it reads as a row
+ * under the action buttons, and is included in the toolbar's height, so
+ * the widget offset math accounts for it automatically. */
+
+.astro-lifecycle-hint {
+  flex-basis: 100%;
+  /* Never wider than the toolbar card, and long tokens (astro:after-swap,
+     monospaced code) wrap instead of poking out of the card on phones. */
+  max-width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font: 400 12.5px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #a6adc8;
+}
+.astro-lifecycle-hint strong {
+  font-weight: 600;
+  color: #cdd6f4;
+}
+.astro-lifecycle-hint code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11.5px;
+  color: #89b4fa;
+}
+
+/* ---------- Simulation button states ----------
+ * .is-active marks the simulation state that is currently in effect
+ * (set from JS on every dispatch); :active is the native press feedback.
+ * The accent (#89b4fa border + glow) makes it instantly clear which
+ * lifecycle state the page is in. */
+
+.astro-actions .btn.is-active,
+.astro-actions .btn:active {
+  border-color: #89b4fa;
+  background: rgba(137, 180, 250, 0.18);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(137, 180, 250, 0.55),
+    0 0 10px rgba(137, 180, 250, 0.35);
+}
+.astro-actions .btn.is-active {
+  /* Held state keeps a slightly stronger tint than the momentary press. */
+  background: rgba(137, 180, 250, 0.24);
+}
+.astro-actions .btn:active {
+  transform: translateY(1px);
+}
+.astro-actions .btn.is-active:not(:active) {
+  transition:
+    background 120ms ease-out,
+    border-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+/* ---------- Metric pulse ----------
+ * Fast (150ms) keyframe flash retriggered from JS on every dispatch so
+ * updated values are instantly noticeable without harming contrast. */
+
+.astro-metrics dd.is-pulsing {
+  animation: astro-metric-pulse 150ms ease-out;
+}
+@keyframes astro-metric-pulse {
+  0% {
+    color: #89b4fa;
+    text-shadow: 0 0 6px rgba(137, 180, 250, 0.7);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
