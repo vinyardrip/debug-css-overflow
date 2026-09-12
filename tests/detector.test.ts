@@ -663,3 +663,45 @@ describe("initDebugCssOverflow", () => {
     expect(document.getElementById("dcso-host")).toBeNull();
   });
 });
+
+/* --------------------------------------------------------------------------
+ * Astro View Transitions lifecycle (full contract: tests/astro-lifecycle.test.ts)
+ * ------------------------------------------------------------------------ */
+
+describe("Astro View Transitions lifecycle", () => {
+  it("astro:after-swap tears down the active instance", () => {
+    const controller = initDebugCssOverflow({ storagePrefix: "test:" });
+    expect(controller).not.toBeNull();
+    expect(document.querySelectorAll("#dcso-host").length).toBe(1);
+
+    document.dispatchEvent(new CustomEvent("astro:after-swap"));
+    expect(document.querySelectorAll("#dcso-host").length).toBe(0);
+  });
+
+  it("astro:page-load with a live instance never duplicates host elements", () => {
+    const controller = initDebugCssOverflow({ storagePrefix: "test:" });
+    expect(controller).not.toBeNull();
+    expect(document.querySelectorAll("#dcso-host").length).toBe(1);
+
+    document.dispatchEvent(new CustomEvent("astro:page-load"));
+    expect(document.querySelectorAll("#dcso-host").length).toBe(1);
+    // The live instance is adopted, not destroyed and re-created.
+    expect(controller!.destroyed).toBe(false);
+
+    // Firing again does not accumulate duplicates.
+    document.dispatchEvent(new CustomEvent("astro:page-load"));
+    expect(document.querySelectorAll("#dcso-host").length).toBe(1);
+  });
+
+  it("re-initializes cleanly across a full after-swap → page-load navigation", () => {
+    initDebugCssOverflow({ storagePrefix: "test:" });
+    expect(document.querySelectorAll("#dcso-host").length).toBe(1);
+
+    document.dispatchEvent(new CustomEvent("astro:after-swap"));
+    expect(document.querySelectorAll("#dcso-host").length).toBe(0);
+
+    document.dispatchEvent(new CustomEvent("astro:page-load"));
+    expect(document.querySelectorAll("#dcso-host").length).toBe(1);
+    expect(document.querySelectorAll("#dcso-page-styles").length).toBe(1);
+  });
+});

@@ -638,7 +638,10 @@ export function buildWidgetHost(
 
   root.append(card, tooltip, badge, controls);
   shadow.appendChild(root);
-  document.body.appendChild(host);
+  const target = document.body || document.documentElement;
+  if (target) {
+    target.appendChild(host);
+  }
 
   // Initial state classes on the host (styles are :host-scoped).
   host.classList.add(`dcso-pos-${position}`);

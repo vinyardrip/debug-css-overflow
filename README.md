@@ -78,8 +78,19 @@ const detector = initDebugCssOverflow({
 // From the controller:
 detector?.toggleHighlight(); // toggle container outlines
 detector?.setMinimized(true); // collapse the widget to a dot
+detector?.setOffset({ top: 96 }); // follow a (re-)wrapped fixed header in place
+detector?.destroyed; // true once destroyed — every method is then a safe no-op
 detector?.destroy(); // remove the widget and stop scanning
 ```
+
+## Astro View Transitions (ClientRouter)
+
+On the first successful `initDebugCssOverflow()` the library wires its own listeners for the Astro ClientRouter lifecycle events on `document` — no extra API calls needed:
+
+- **`astro:after-swap`** — the swapped-out DOM discarded the widget host, so the stale instance is torn down (observers, listeners, detached nodes).
+- **`astro:page-load`** — a fresh detector is created for the "new" page from the last options — **but only when there is none**. Apps that re-initialize the detector themselves inside their own `astro:page-load` handler (e.g. recomputing `offset.top` from the *current* rendered header height) register that handler first, so their instance is already live when the library's runs; the library **adopts** it instead of replacing it. This keeps the behavior order-independent: a dynamically recomputed offset is never silently swapped for the stale boot-time one, and controller references the app holds (for `setOffset()` calls from header-following observers) never end up pointing at a destroyed instance.
+
+A deliberate teardown — the widget's **"disable for this session"** button, `destroyDebugCssOverflow()`, or `initDebugCssOverflow({ enabled: false })` — is honored across navigations: nothing is resurrected by later lifecycle events.
 
 ## Options
 
@@ -128,7 +139,7 @@ pnpm build       # tsup → dist/index.mjs, dist/index.cjs, dist/index.global.js
 cd tests_plugin && pnpm dev   # http://localhost:5173
 ```
 
-The `/astro/` route extends the DevTools toolbar with an interactive ClientRouter control panel: simulation buttons (**Simulate Navigation**, **Simulate After Swap**, **Simulate Page Load**), a ⓘ tooltip explaining the emulation, and live metrics (`hosts`, `styles`, `overflow`, `last event`) that update in real time as each simulation runs — confirming a clean teardown (`hosts: 0`) and a fresh mount (`hosts: 1`) on every simulated navigation, without memory leaks or duplicate instances. The route is a lightweight emulation, not a real Astro app — Astro is a standalone meta-framework and is not layered into the Vite dev server — dispatching the same native `astro:after-swap` / `astro:page-load` DOM events the Astro ClientRouter emits. The control panel is fully responsive: on narrow viewports the title, metrics, and buttons wrap into stacked rows, and the tooltip never exceeds the viewport edge.
+The `/astro/` route extends the DevTools toolbar with an interactive ClientRouter control panel: simulation buttons (**Simulate Navigation**, **Simulate After Swap**, **Simulate Page Load**), a ⓘ tooltip explaining the emulation, and live metrics (`hosts`, `styles`, `overflow`, `last event`) that update in real time as each simulation runs — confirming a clean teardown (`hosts: 0`) and a fresh mount (`hosts: 1`) on every simulated navigation, without memory leaks or duplicate instances. On every `astro:page-load` the widget's `offset.top` is recomputed from the **current rendered geometry** of the (possibly wrapped) navbar and toolbar, so after resizing until the toolbar buttons stack into multiple rows, the badge remounts strictly below them with a 12px gutter — never overlapping the action buttons. The route is a lightweight emulation, not a real Astro app — Astro is a standalone meta-framework and is not layered into the Vite dev server — dispatching the same native `astro:after-swap` / `astro:page-load` DOM events the Astro ClientRouter emits. The control panel is fully responsive: on narrow viewports the title, metrics, and buttons wrap into stacked rows, and the tooltip never exceeds the viewport edge.
 
 The playground's sticky DevTools header is fully responsive on mobile: at viewports `<= 640px` the six framework tabs collapse from text labels to compact framework SVG icons (Vanilla, Nunjucks, Svelte, Vue, React, Astro) so brand, tabs, and the Toggle Overflow button fit on one line — every tab keeps its full accessible name via `title`/`aria-label`.
 

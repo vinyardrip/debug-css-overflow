@@ -99,17 +99,23 @@ export function isExceedingViewport(el: Element, innerWidth: number): boolean {
  * `overflow-x: scroll`. Returns the scrolling container, or `null` when
  * there is none (the element is a true page-level offender).
  */
-function findScrollableAncestor(el: Element): Element | null {
-  let node: Element | null = el.parentElement;
-  while (node && node !== document.body && node !== document.documentElement) {
-    const style = window.getComputedStyle(node);
+function findScrollableAncestor(
+  node: Element | null,
+  win?: Window,
+): HTMLElement | null {
+  const currentWin = win || node?.ownerDocument?.defaultView || window;
+  const doc = node?.ownerDocument || document;
+  const body = doc?.body;
+  let cur: Element | null = node ? node.parentElement : null;
+  while (cur && body && cur !== body && cur !== doc.documentElement) {
+    const style = currentWin.getComputedStyle(cur);
     if (
       style.overflowX === "auto" ||
       style.overflowX === "scroll"
     ) {
-      return node;
+      return cur as HTMLElement;
     }
-    node = node.parentElement;
+    cur = cur.parentElement;
   }
   return null;
 }
@@ -163,7 +169,7 @@ export function scan(
     ) {
       // Skip elements that live inside an intentionally scrolling container
       // (overflow-x: auto|scroll) — those are not true page offenders.
-      const scrollableParent = findScrollableAncestor(el);
+      const scrollableParent = findScrollableAncestor(el, win);
       if (!scrollableParent) {
         raw.push(el);
       }
@@ -434,7 +440,7 @@ export class OverflowDetector implements DebugCssOverflowController {
   private resizeEndTimer = 0;
   private _rafPending = false;
   private lastReportKey = "";
-  private destroyed = false;
+  private _destroyed = false;
 
   constructor(options: DebugCssOverflowOptions = {}) {
     const hotkeys = { ...DEFAULT_OPTIONS.hotkeys, ...options.hotkeys };
@@ -450,7 +456,7 @@ export class OverflowDetector implements DebugCssOverflowController {
     // Single source of truth: `enabled` in the options. When false, exit
     // immediately WITHOUT creating any DOM, styles, hotkeys, or observers.
     if (this.opts.enabled === false) {
-      this.destroyed = true;
+      this._destroyed = true;
       return;
     }
 
@@ -540,13 +546,24 @@ export class OverflowDetector implements DebugCssOverflowController {
     return this._minimized;
   }
 
+  /**
+   * True once {@link destroy} ran (or the instance was created with
+   * `enabled: false` and never mounted anything). A destroyed controller
+   * keeps its public shape — every method is a safe no-op — so holders can
+   * keep the reference and poll this flag (e.g. to stop feeding a stale
+   * instance from header-following observers).
+   */
+  get destroyed(): boolean {
+    return this._destroyed;
+  }
+
   /* ----------------------------------------------------------------------
    * Public controller methods
    * -------------------------------------------------------------------- */
 
   /** Re-scans the page and refreshes the widget immediately. */
   refresh(): void {
-    if (this.destroyed) return;
+    if (this._destroyed) return;
     const win = window;
     const host = this.widget ? this.widget.host : null;
 
@@ -654,8 +671,8 @@ export class OverflowDetector implements DebugCssOverflowController {
 
   /** Tears down the widget, observers, listeners, and injected styles. */
   destroy(): void {
-    if (this.destroyed) return;
-    this.destroyed = true;
+    if (this._destroyed) return;
+    this._destroyed = true;
 
     this._highlighted = false;
     applyHighlights(document, false, [], this.widget ? this.widget.host : null, getViewportWidth(window));

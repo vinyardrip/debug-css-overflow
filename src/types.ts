@@ -131,6 +131,12 @@ export interface DebugCssOverflowController {
   readonly highlighted: boolean;
   /** Whether the widget is collapsed to a dot. */
   readonly minimized: boolean;
+  /**
+   * Whether this instance was torn down ({@link destroy} ran, or it was
+   * created with `enabled: false` and never mounted anything). A destroyed
+   * controller stays safe to hold: every method is a no-op.
+   */
+  readonly destroyed: boolean;
   /** Re-scan the page and refresh the widget immediately. */
   refresh(): void;
   /** Toggle container-outline highlighting; returns the new value. */

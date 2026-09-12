@@ -19,9 +19,13 @@
  *     content, so the previous detector instance is torn down via
  *     destroyDebugCssOverflow() (idempotent — safe to fire twice).
  *   * astro:page-load  — a fresh detector is created for the "new" page via
- *     initDebugCssOverflow(). The library keeps a single active instance
- *     (re-init replaces the previous one), so no duplicates accumulate even
- *     when the event fires several times in a row.
+ *     initDebugCssOverflow(), with offset.top recomputed from the CURRENT
+ *     rendered geometry (navbar + toolbar, both wrappable on narrow
+ *     viewports). The library also wires its own lifecycle listeners on the
+ *     first init; they are order-independent and ADOPT the detector this
+ *     handler just created instead of replacing it, so window.__dcso stays
+ *     live after the event and the header-following setOffset() calls keep
+ *     working.
  *
  * Feedback model (all inside the toolbar — the page content itself stays
  * crisp at 100% opacity through every simulated event):
@@ -233,9 +237,12 @@ document.addEventListener("astro:after-swap", () => {
 
 document.addEventListener("astro:page-load", () => {
   markEvent("astro:page-load");
-  // A fresh detector for the "new" page. initDebugCssOverflow replaces any
-  // previous instance, so this cannot create duplicates even when the event
-  // fires multiple times without an intervening swap.
+  // A fresh detector for the "new" page — offset.top recomputed from the
+  // CURRENT rendered header geometry on every dispatch, so the badge always
+  // mounts strictly below the (possibly wrapped) navbar + toolbar. The
+  // library's own page-load listener adopts this instance (order-safe), so
+  // initDebugCssOverflow replacing a previous one still cannot create
+  // duplicates even when the event fires multiple times without a swap.
   boot();
   bumpRenderBadge();
   updateDiagnostics();
